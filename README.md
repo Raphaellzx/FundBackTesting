@@ -1,10 +1,10 @@
-# 流程顺序
+# fundbacktesting
 
-## 当前基础实现
+`fundbacktesting` 是一套契约驱动的通用基金回测框架。框架只提供回测机制：数据标准化、调仓日调度、目标权重校验、交易与费用执行、净值轨迹记录、绩效计算和审计输出。具体投资规则放在仓库根目录的 `strategies/` 中，通过 `decide(context)` 插槽接入；框架不认识任何具体研究或策略。
 
-仓库现已包含一个可运行的 Python 基础回测。示例数据位于 `data/Data.xlsx`：第 4 行为基金名称，第 5 行为基金代码，第 6 行起是交易日期和复权单位净值；缺失净值表示该基金当日尚无可用数据。适配器将其转换为按日期索引的标准行情，并以当前有净值的基金生成基金池快照。
+## 快速开始
 
-需要 Python 3.10+。数据文件放在根目录 `data/` 中；编辑 [fundbacktesting/__main__.py](fundbacktesting/__main__.py) 顶部的 `DATA_FILE`，即可切换为 `data/` 中的其他数据文件。也可以修改策略文件、初始资金、费率、调仓频率和回测日期等参数。再从 IDE 运行 `fundbacktesting.__main__` 模块，或在仓库根目录启动：
+需要 Python 3.10+ 与 `openpyxl`。
 
 ```powershell
 py -3.13 -m pip install -r requirements.txt
@@ -12,13 +12,27 @@ py -3.13 -m fundbacktesting
 py -3.13 -m unittest discover -s tests -v
 ```
 
-运行回测不需要输入终端参数：默认从根目录 `data/Data.xlsx` 读取数据，并将所有运行结果写到根目录 `results/` 下以本次回测名称命名的独立文件夹。每次运行自动生成新的策略名和时间戳前缀。
+入口位于 `fundbacktesting/__main__.py`。默认读取 `data/Data.xlsx`，使用 `strategies/equal_weight.py`，结果写入 `results/<run_id>/`。修改入口顶部的常量可切换数据文件、策略文件、日期区间、资金、费率、调仓频率、无风险利率与风险指标参数。
 
-默认使用月频首个交易日调仓、可用基金等权、初始资金 1,000,000、单边交易费率 0.05%。将 `REBALANCE_FREQUENCY` 设为 `"none"` 可关闭定期调仓：引擎只在回测首日按策略目标建仓一次，之后不再调用策略或交易，持仓数量保持不变，基金权重随净值自然变化；初次建仓仍按 `FEE_RATE` 收费。其他可选频率为 `"daily"`、`"weekly"` 和 `"monthly"`。评价层按月末 NAV 变化计算月收益（首期以初始 NAV 1.0 为基准）；年化收益按月数复合，年化波动率采用月收益样本标准差乘以 √12。`sharpe_ratio` 是扣除年化无风险利率 2% 后按 √12 年化的夏普；Sortino 和下行偏差以年化 MAR（默认 0%）为阈值并按 √12 年化，Omega 为超过 MAR 的收益总和与低于 MAR 的损失总和之比。最大回撤及其持续交易日数基于每日 NAV；1 日 VaR/CVaR 使用每日收益的 95% 历史模拟法，尾部样本数取最差 `ceil(5% × 样本数)` 个收益，损失以正数比例表示。可在 `__main__.py` 调整 `ANNUAL_RISK_FREE_RATE`、`ANNUAL_MAR` 和 `VAR_CONFIDENCE_LEVEL`。回测按调仓日净值估值交易，适合作为基础流程示例，不模拟基金申赎确认日差。净值在未上市区间不回填；开始有净值后，缺失交易日按最近已知净值估值。目标权重由策略返回，交易、现金变化和费用由引擎统一处理。
+Excel 输入布局：第 4 行为基金名称，第 5 行为基金代码，第 6 行起为日期和复权单位净值；空白净值表示该基金当日无可用数据，不插值、不回填上市前净值。
 
-策略存放在仓库根目录 `strategies/`，每个策略一个 Python 文件；`fundbacktesting/` 只放回测框架的实现代码。运行入口 [fundbacktesting/__main__.py](fundbacktesting/__main__.py) 中的 `STRATEGY_FILE` 指向当前策略文件；要切换策略，只需将它改为 `strategies/` 下另一策略文件路径。每个策略文件需提供 `create_strategy()` 工厂，返回实现 `decide(context)` 的策略对象；可设置 `STRATEGY_NAME` 作为结果前缀，不设置时默认使用文件名。新增策略可参考 [strategies/equal_weight.py](strategies/equal_weight.py)。
+## 当前实现
 
-新策略的基本结构：
+| 模块 | 职责 |
+|---|---|
+| `fundbacktesting/contracts.py` | 冻结数据类与策略协议：`MarketData`、`FundMeta`、`BacktestConfig`、`BacktestContext`、`BacktestResult`、`EvaluationResult` |
+| `fundbacktesting/adapter.py` | Excel 适配器与 CSV 读取器；把外部数据组装为 `MarketData` |
+| `fundbacktesting/engine.py` | 交易日循环、调仓调度、目标校验、成交与费用、净值和调仓诊断记录 |
+| `fundbacktesting/evaluation.py` | 从结果对象计算绩效；支持可配置的指标计算约定 |
+| `fundbacktesting/reference.py` | 外部回归基准比对，只生成 pass/fail 报告，不参与计算 |
+| `fundbacktesting/runner.py` | 组装一次运行，写出净值、持仓、交易、费用、指标、配置和运行清单 |
+| `fundbacktesting/strategy_loader.py` | 从 Python 文件加载 `create_strategy()` 和 `STRATEGY_NAME` |
+
+依赖方向保持单向：适配层、策略层和评价层依赖契约；引擎只依赖契约，不导入具体数据源、策略或评价指标实现。编排层是唯一同时组装各层的模块。
+
+## 策略插槽
+
+策略文件放在仓库根目录 `strategies/`。每个文件提供 `create_strategy()`，返回带 `decide(context)` 方法的对象；可选定义 `STRATEGY_NAME`。
 
 ```python
 from fundbacktesting.contracts import BacktestContext
@@ -27,293 +41,84 @@ STRATEGY_NAME = "my_strategy"
 
 class MyStrategy:
     def decide(self, context: BacktestContext) -> dict[str, float]:
-        # 返回可用基金的目标权重，合计不超过 1；剩余仓位作为现金
-        ...
+        # 返回可用基金的目标权重，合计不超过 1；剩余部分为现金
+        return {context.active_funds[0]: 1.0}
 
 def create_strategy() -> MyStrategy:
     return MyStrategy()
 ```
 
-将 `__main__.py` 中的 `STRATEGY_FILE` 改为 `strategies/` 下该文件路径即可切换策略。
+策略决定“目标是什么”，引擎决定“如何成交、花多少费用、如何更新持仓与现金”。策略可以持有跨期内部状态，但不得直接修改引擎状态；组合状态、交易记录和成本记录由引擎维护。
 
-每次运行在 `results/<回测名称>/` 中生成净值、持仓、交易、费用 CSV，以及指标和配置 JSON，例如 `results/equal_weight_20261117_105500/equal_weight_20261117_105500_nav.csv`。根目录的 `metrics_summary.csv` 继续汇总所有运行的指标。可在 `__main__.py` 中设置 `RESULT_NAME` 定制本次文件夹和文件名前缀；默认 `None` 时自动生成“策略名_回测时间”。配置快照含输入工作簿 SHA-256 及风险指标参数，便于追溯数据和计算口径。
+`strategies/equal_weight.py`、`strategies/portfolio1_four_long_bonds.py` 和 `strategies/portfolio2_four_long_short_cash.py` 是简单示例。`strategies/study_v17.py` 是一个用例级普通策略：它把一套具体研究规则封装在自己的 `decide()` 中，框架仅把它当作返回目标权重的策略对象。
 
-框架实现按职责分为 `fundbacktesting/contracts.py`（契约）、`adapter.py`（Excel 数据适配）、`engine.py`（交易日循环与执行）、`evaluation.py`（结果评价）和 `runner.py`（编排与文件输出）；策略单独放在仓库根目录 `strategies/`。引擎不导入适配器、具体策略或评价模块；策略只通过 `BacktestContext` 返回目标权重。
+## 通用回测机制
 
-## Data2 组合回测
+### 调仓计划
 
-使用 `data/Data2.xlsx` 的数据（2025-04-01 至 2026-11-09），按月频首个交易日调仓、初始资金 1,000,000、单边费率 0.05% 回测以下两个组合：
+`BacktestConfig.rebalance_frequency` 支持 `none`、`daily`、`weekly`、`monthly`。`none` 只在回测首日建仓一次，后续持仓自然漂移。
 
-1. 四只长债各 25%：`BZ22167.OF`、`BZ22106.OF`、`BZ23085.OF`、`BZ20342.OF`。
-2. 上述四只长债各 24%，`BZ22121.OF`（人保资产稳盈专享3号）3%，未投资的 1% 保持现金。
+需要非频率型日期序列时使用 `rebalance_dates: tuple[date, ...]`。显式日期优先于频率设置，并与回测区间取交集；交集为空会报错。
 
-对应策略文件为 [portfolio1_four_long_bonds.py](strategies/portfolio1_four_long_bonds.py) 和 [portfolio2_four_long_short_cash.py](strategies/portfolio2_four_long_short_cash.py)。策略返回的基金权重可以低于 100%；差额由引擎保留为现金。
+`decision_lag` 用于分离可见数据日与成交日：
 
-## 一、读取数据：三步标准化
+- `decision_lag=0`：`context.current_date` 和 `context.decision_date` 都是成交日；
+- `decision_lag>0`：`context.current_date` 向前移动 lag 个交易日，`context.decision_date` 仍是成交日。
 
-### 第1步：适配（外部→标准）
-从Wind（或任意源）读原始文件。
+`context.history` 保留旧语义，包含截至 `current_date` 的数据；需要严格时点数据时使用 `context.history_before_current`，它只包含 `current_date` 之前的数据。
 
-用映射配置把源字段翻译成标准字段。
+### 时点数据与可选上下文
 
-映射是唯一随数据源变化的地方，引擎不感知。
+`MarketData` 除日期、净值和名称外，还可携带：
 
-### 第2步：标准化（统一形态）
-产出标准数据，最小集合：
+- `risk_free_rates: Mapping[date, float]`：逐日无风险利率；
+- `fund_meta: Mapping[str, FundMeta]`：产品类型、成立日、准入起始日等可选属性；
+- `source_fingerprints: Mapping[str, str]`：多份输入的哈希指纹。
 
-行情表：fund_code | trade_date | nav/adj_nav | asset_class
+框架不解释这些字段，只把它们传给策略或评价层。CSV 读取器：
 
-元数据表（可选）：fund_code | fee | min_hold_days | valid_from/to
+```python
+from fundbacktesting.adapter import (
+    load_nav_csv,
+    load_risk_free_csv,
+    load_instrument_meta_csv,
+    with_market_context,
+)
+```
 
-标准化要保证：日期对齐交易日历、代码统一、数值单位统一、去重。
+`load_nav_csv()` 读取宽表净值，缺失值跳过；`load_risk_free_csv()` 默认把百分数转为小数；`load_instrument_meta_csv()` 读取可选元数据；`with_market_context()` 返回附加上下文的新 `MarketData`，不修改原对象。
 
-### 第3步：就绪（喂给引擎的形态）
-行情转成宽表（行=日期，列=基金，值=净值），引擎按日期切片最快。
+### 初始建仓成本
 
-元数据转成字典（按 fund_code 索引），调仓时 O(1) 查费用/持有期。
+`charge_initial_cost=True`（默认）保持原行为。`charge_initial_cost=False` 时，首个再平衡日仍建仓并记录交易，但不记费用成本，也不把首日建仓计入换手诊断；后续调仓正常计费。
 
-基金池按日期生成可用快照（防幸存者偏差）。
+### 绩效计算约定
 
-读取阶段的产出 = 引擎可直接消费的、与数据源无关的标准数据对象。
+`evaluate(result, convention=None)` 返回 `EvaluationResult`。未显式指定时使用 `result.config_snapshot["metric_convention"]`；可用约定由 `available_conventions()` 查询。
 
-## 二、回测：引擎的一次完整执行
-执行主循环
+- `framework`：月末净值计算月收益；按月复合年化；月收益样本标准差乘 √12；固定年化无风险利率；回撤自 1.0 起算；双边成交额换手；含 Sortino、Omega、历史 VaR/CVaR。
+- `daily_365`：365 自然日年化；日收益样本标准差乘 √252；逐日无风险利率，缺失日按 0.016；回撤自区间首日起算；基于调仓前后权重差的单边/双边换手；输出 `rebalance_count_sum`。
 
-初始化：日期范围、调仓频率、初始资金、策略实例、标准数据
-   ↓
-for 每个交易日 d in 交易日历:
-    if d 是调仓日:
-        1. 组装 context（d、历史窗口、当前持仓、基金池、信号）
-        2. target = strategy.decide(context)
-        3. 校验 target（基金权重和≤1、池内、无负权重；差额为现金）
-        4. executor 执行调仓：
-             交易量 = target - 当前
-             成本 = 成本模型(交易量, 费用, 持有期)
-             更新持仓/现金/成本记录
-        5. 记录调仓日志
-    1. 用当日净值更新组合净值（持仓权重×净值变动）
-    2. 记录当日净值、持仓快照
-   ↓
-输出结果对象
+`EvaluationResult.as_dict()` 提供旧调用方需要的指标字典视图，同时保留 `convention`、`units` 与 `convention_notes`，避免不同口径的指标被混用。
 
-四个结构要点
-时间由引擎控制：策略不决定何时被调用，只在调仓日被问。
+### 回归基准与运行清单
 
-策略是纯函数：decide(context) → target，不修改状态，状态变更只由 executor 做。
+`reference.py` 接收外置基准文件和计算结果，返回逐项 pass/fail。基准只用于验收，不进入数据、策略、引擎或评价计算。
 
-决策与执行分离：策略说"要什么"，executor 负责"怎么做到、花多少成本"。
+`run_from_files()` 每次写出 `{run_id}_nav.csv`、`{run_id}_holdings.csv`、`{run_id}_trades.csv`、`{run_id}_costs.csv`、`{run_id}_metrics.json`、`{run_id}_config.json` 和 `{run_id}_manifest.json`，并更新 `results/metrics_summary.csv`。运行清单记录代码版本、Python 与平台、指标约定、输入指纹、源文件哈希和配置快照。
 
-成本集中在 executor：费率、滑点、持有期罚金只在一处，不散落。
+## 用例与回归测试
 
-一个契约承载所有场景
-不管是单基金、多基金、大类配置还是FOF择时，策略最终都返回目标权重。择时、选基、配置全是策略内部逻辑，引擎一概不管。
+`cases/study_v17/data.py` 把三份外部 CSV 组装成框架通用的 `MarketData`。`strategies/study_v17.py` 是普通策略实现，具体规则只存在于该策略中。
 
-## 三、输出回测结果：轨迹 + 评价
+`tests/test_study_v17_reference.py` 在 `data/` 下三份输入 CSV 与 `tests/reference/study-baseline.json` 存在时运行：它用外置基准检查输入哈希、17 期逐期持仓和七项主指标。该测试是验收层，不会改变框架计算；缺少输入或基准时自动跳过。原研究包目录已删除，逐期结果与参数已固化在基准文件中。
 
-### 引擎产出：结果对象（原始轨迹）
-nav_series：组合逐日净值
+`tests/test_generic_backtest.py` 覆盖显式再平衡日、时点数据、决策滞后、初始成本开关、两套绩效约定、基准比对、CSV 适配器和运行清单。
 
-holdings_series：每期持仓
+## 边界与不做事项
 
-trade_log：每笔调仓（日期、基金、方向、数量、成本）
-
-cost_log：成本明细
-
-config_snapshot：本次回测的参数快照（可复现）
-
-引擎只产出轨迹，不算指标。 这是"引擎通用"的关键：轨迹是客观事实，指标是主观口径。
-
-### 评价层产出：业绩指标（消费结果对象）
-独立的评价模块，输入结果对象（+可选基准），输出指标集：
-
-收益类：累计收益、年化收益
-
-风险类：波动率、最大回撤、下行波动
-
-风险调整：夏普、Calmar、Sortino
-
-相对类（有基准时）：超额收益、信息比率、跟踪误差
-
-交易类：年换手率、累计成本占比、调仓次数
-
-评价层可增删指标、可换口径，完全不影响引擎。
-
-输出的组织
-轨迹存文件（csv），按 run_id 命名。
-
-指标存汇总表，便于多回测对比。
-
-每次回测锁定数据版本 + 配置快照，保证可复现。
-
-## 四、一句话总结整条主线
-读取：适配器把任意数据源翻译成标准数据（宽表+字典+池快照）；
-回测：引擎按交易日推进，在调仓日调 strategy.decide(context) 拿目标权重，executor 执行调仓并计成本，逐日累积净值；
-输出：引擎产出轨迹对象（净值/持仓/交易/成本），评价层独立消费轨迹计算业绩指标。
-
-三层职责清晰：适配器管数据源差异，引擎管执行流程，评价层管指标口径，三者互不侵入。这就是通用基座的完整数据流。
-
-# 实现架构
-
-## 一、架构总原则：三层依赖单向
-
-适配层 → 引擎层 → 评价层
-   ↑         ↑
-配置层    策略层（通过契约注入引擎）
-
-依赖只能单向向内：外层依赖内层，内层不认识外层。这是组织架构的骨架。
-
-引擎层依赖标准数据契约，但不依赖适配层具体实现
-
-策略层依赖引擎契约，但引擎不依赖任何具体策略
-
-评价层依赖结果对象契约，但引擎不依赖评价
-
-契约层是唯一被所有层共享的"公共语言"。
-
-## 二、五层组织架构
-
-### 第1层：契约层（contract）
-职责：定义所有跨层交互的数据结构和接口签名。这是整个系统最稳定、最底层、被依赖最多的模块。
-
-内容：
-
-标准数据 Schema（行情、元数据、基金池）
-
-策略契约（decide(context) -> target，含 context 与 target 的结构定义）
-
-结果对象 Schema（净值、持仓、交易、成本）
-
-扩展点签名（成本模型接口、基准接口）
-
-组织约束：契约层不依赖任何其他层，不 import 上层任何代码。它是纯定义，无实现。
-
-### 第2层：内核层（engine）
-职责：实现回测主循环，是系统的执行中枢。
-
-内部四个部件（对应之前讨论的四元组）：
-
-部件	职责
-Clock	交易日历、调仓频率、推进节拍
-State	组合状态容器（持仓/现金/净值）
-Executor	目标→交易→成本→新状态
-Orchestrator	串联 Clock/State/Strategy/Executor 的主循环
-组织约束：内核只 import 契约层。内核中不允许出现任何业务词汇（股票/债券/动量），只有抽象概念（资产/权重/日期/收益）。
-
-### 第3层：适配层（adapter）
-职责：把外部数据源翻译成标准数据契约。
-
-组织方式：
-
-每个数据源一个独立适配器模块（wind_adapter / choice_adapter / csv_adapter）
-
-每个适配器内部含：字段映射配置、格式转换、资产类别派生、数据清洗
-
-所有适配器实现同一个适配器契约（输入原始文件→输出标准数据对象）
-
-组织约束：适配器只 import 契约层，不 import 引擎层。引擎永远不知道"Wind"这个词存在。
-
-### 第4层：策略层（strategy）
-职责：实现 decide(context) 契约，产出目标权重。
-
-组织方式：
-
-每个策略一个独立模块/文件，实现同一策略契约
-
-策略内部可自由组合：大类配置逻辑、选基逻辑、择时逻辑
-
-策略之间互不依赖，可独立增删
-
-组织约束：策略只 import 契约层，绝不 import 引擎层内部实现。策略通过契约被注入引擎，引擎反向不认识任何具体策略。
-
-### 第5层：评价层（evaluation）
-职责：消费结果对象，计算业绩指标。
-
-组织方式：
-
-指标计算按类别拆分（收益/风险/相对/交易）
-
-每个指标是独立函数，输入结果对象，输出指标值
-
-评价层可组合指标集、可对比基准、可生成报告
-
-组织约束：评价层只 import 契约层的结果对象定义。评价层是引擎的下游消费者，引擎不依赖评价层。
-
-## 三、横切模块：配置层与编排层
-除五层外，有两个横切组织：
-
-配置层（config）
-存放映射配置、组合配置、回测参数、评价指标选择
-
-被适配层、策略层、评价层读取
-
-配置是数据不是代码，改配置不改任何模块
-
-编排层（runner / orchestrator）
-最外层的"应用入口"
-
-职责：读配置 → 调适配器 → 实例化策略 → 启动引擎 → 传结果给评价层 → 输出
-
-它是唯一同时 import 所有层的模块
-
-编排层不含业务逻辑，只做组装
-
-## 四、依赖关系图（组织架构的核心）
-
-                    ┌─────────────┐
-                    │  编排层      │  ← 唯一横跨所有层
-                    └──────┬──────┘
-          ┌────────┬───────┼────────┬─────────┐
-          ↓        ↓       ↓        ↓         ↓
-      ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
-      │适配层 │ │策略层 │ │ 内核层│ │ 评价层│ │ 配置层│
-      └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘
-         └────────┴────────┴────────┴────────┘
-                          ↓
-                    ┌──────────┐
-                    │  契约层   │  ← 被所有层依赖，不依赖任何层
-                    └──────────┘
-读图要点：
-
-契约层在最底，被所有层依赖，自己不依赖任何层
-
-五个功能层互不横向依赖，只纵向依赖契约层
-
-编排层是唯一"上帝模块"，负责组装，但不含逻辑
-
-任意一层内部变化，不影响其他层——这是组织架构的稳定性保证
-
-## 五、各层的组织规模建议
-保持简单，不搞过度分层：
-
-层	模块数	说明
-契约层	1个模块	所有 Schema 和接口定义放一起
-内核层	1个模块内含4个部件	Clock/State/Executor/Orchestrator 作为内部类
-适配层	1个通用适配器 + N个数据源适配器	通用逻辑抽公共，数据源差异各自实现
-策略层	N个策略模块	每个策略一个文件，扁平组织
-评价层	1个模块内按类别分函数	指标函数扁平存放
-配置层	若干配置文件	映射/组合/参数
-编排层	1个入口脚本	组装调用
-能扁平就扁平，不为了分层而分层。 层是职责边界，不是目录深度。
-
-## 六、组织架构守住的三条纪律
-这是让架构长期不腐化的关键：
-
-纪律1：依赖方向不可逆
-内层永远不 import 外层。契约层不 import 引擎，引擎不 import 适配器，引擎不 import 策略，引擎不 import 评价。代码审查时，import 语句是检查重点。
-
-纪律2：变化被隔离在对应层
-数据源变 → 只改适配层
-
-策略变 → 只改策略层
-
-指标口径变 → 只改评价层
-
-参数变 → 只改配置层
-
-引擎层和契约层永远不动
-
-纪律3：契约层是唯一共识
-任何跨层数据传递，必须经过契约层定义的结构。禁止层与层之间传递"临时字典""裸 DataFrame"。契约层是团队协作的接口文档。
-
-## 七、一句话总结组织架构
-契约层打底，内核层居中执行，适配/策略/评价三层环绕各自隔离变化，配置层驱动，编排层组装；依赖单向向内，变化隔离在层内，引擎与契约永不因外部变化而改动。
+- 不新增插件系统；策略插槽沿用 `create_strategy()` 文件加载约定。
+- 不把具体研究的规则、参数或专有名词写入框架核心。
+- 不模拟基金申赎确认日差；`decision_lag` 只控制可见数据日与成交日的关系。
+- 不提供基准组合、信息比率、跟踪误差、业绩归因或实盘下单。
+- 不自动消除候选集合的存续偏差；样本内参数和结果必须显式标注。

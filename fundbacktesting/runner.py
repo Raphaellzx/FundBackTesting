@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import csv
 import json
+import platform
 import re
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .adapter import load_market_data
@@ -11,21 +14,40 @@ from .engine import run_backtest
 from .evaluation import evaluate
 
 
+def _code_version() -> str:
+    try:
+        import subprocess
+
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode == 0 and completed.stdout.strip():
+            return completed.stdout.strip()
+    except OSError:
+        pass
+    return "unavailable"
+
+
 def run_from_files(
     data_path: str | Path,
     output_dir: str | Path,
     config: BacktestConfig,
     strategy: Strategy,
     run_id: str,
+    market_data: object | None = None,
 ) -> dict[str, Path]:
     if not re.fullmatch(r"[\w-]+", run_id, flags=re.UNICODE):
         raise ValueError(
             "run_id may contain only letters, numbers, underscores, and hyphens."
         )
 
-    market_data = load_market_data(data_path)
-    result = run_backtest(market_data, strategy, config)
-    metrics = evaluate(result)
+    loaded_data = market_data if market_data is not None else load_market_data(data_path)
+    result = run_backtest(loaded_data, strategy, config)
+    evaluation = evaluate(result)
+    metrics = evaluation.as_dict()
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
     run_output = output / run_id
@@ -38,6 +60,7 @@ def run_from_files(
         "costs": run_output / f"{run_id}_costs.csv",
         "metrics": run_output / f"{run_id}_metrics.json",
         "config": run_output / f"{run_id}_config.json",
+        "manifest": run_output / f"{run_id}_manifest.json",
         "metrics_summary": output / "metrics_summary.csv",
     }
     with paths["nav"].open("w", newline="", encoding="utf-8-sig") as file:
@@ -92,9 +115,22 @@ def run_from_files(
             for cost in result.cost_log
         )
 
+    manifest = {
+        "schema": "run-manifest/v1",
+        "run_id": run_id,
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "code_version": _code_version(),
+        "python_version": sys.version.split()[0],
+        "platform": platform.platform(),
+        "metric_convention": evaluation.convention,
+        "input_fingerprints": dict(result.config_snapshot.get("source_fingerprints") or {}),
+        "source_sha256": result.config_snapshot.get("source_sha256"),
+        "config": result.config_snapshot,
+    }
     for key, payload in (
         ("metrics", metrics),
         ("config", {**result.config_snapshot, "run_id": run_id}),
+        ("manifest", manifest),
     ):
         paths[key].write_text(
             json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False) + "\n",

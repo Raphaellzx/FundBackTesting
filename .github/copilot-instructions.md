@@ -1,8 +1,8 @@
 # Copilot instructions for this repository
 
-## Build, test, and lint commands
+## Build and test
 
-Use Python 3.10+ and install the sole runtime dependency:
+Use Python 3.10+. The runtime dependency is `openpyxl`.
 
 ```powershell
 py -3.13 -m pip install -r requirements.txt
@@ -10,73 +10,51 @@ py -3.13 -m fundbacktesting
 py -3.13 -m unittest discover -s tests -v
 ```
 
-To run one test, use `py -3.13 -m unittest tests.test_backtest.BacktestTests.test_equal_weight_rebalances_and_charges_costs -v`. There is no separate linter configured.
+Run one test module with `py -3.13 -m unittest tests.test_generic_backtest -v`. There is no separate linter configured.
 
-Configure runs by editing `DATA_FILE`, `OUTPUT_DIR`, `STRATEGY_FILE`, `INITIAL_CAPITAL`, `FEE_RATE`, `REBALANCE_FREQUENCY`, `START_DATE`, `END_DATE`, `ANNUAL_RISK_FREE_RATE`, `ANNUAL_MAR`, `VAR_CONFIDENCE_LEVEL`, and optionally `RESULT_NAME` in `fundbacktesting/__main__.py`. Strategies live in the repository-root `strategies/` folder; framework implementation lives in `fundbacktesting/`. Run `py -3.13 -m fundbacktesting`; artifacts go under the repository-root `results/`.
-`REBALANCE_FREQUENCY` accepts `none`, `daily`, `weekly`, or `monthly`. `none` invokes the strategy and trades only on the first backtest date; subsequent holdings are held without rebalancing.
+The reference test `tests/test_study_v17_reference.py` skips automatically when the three input CSVs in `data/` or the baseline file in `tests/reference/study-baseline.json` are absent. It compares framework results against the external baseline (17 rebalance holdings and seven primary metrics); never make framework code depend on any removed study tree.
 
-## High-level architecture
+## Current architecture
 
-The project is a general-purpose fund backtesting framework with strict separation of responsibilities:
+This is a contract-driven general-purpose fund backtesting framework. It provides mechanisms, not investment rules.
 
-- Data ingestion and adaptation: external market data sources are normalized into a source-agnostic standard format.
-- Core backtesting engine: the engine owns the date loop, state transitions, and execution flow.
-- Strategy layer: strategies decide target portfolio weights without directly mutating engine state.
-- Execution layer: the executor translates target allocations into trades, applies costs, and updates portfolio state.
-- Evaluation layer: metrics are computed from the raw results object instead of being mixed into the engine.
+- `fundbacktesting/contracts.py`: frozen data contracts and the `Strategy` protocol.
+- `fundbacktesting/adapter.py`: Excel adapter and CSV readers producing `MarketData`.
+- `fundbacktesting/engine.py`: trading-day loop, rebalance scheduling, target validation, trade execution, costs, NAV and rebalance diagnostics.
+- `fundbacktesting/evaluation.py`: metric conventions computed from `BacktestResult`.
+- `fundbacktesting/reference.py`: external baseline comparison; report only, never a calculation input.
+- `fundbacktesting/runner.py`: composition root and artifact writer, including the run manifest.
+- `fundbacktesting/strategy_loader.py`: loads `create_strategy()` and `STRATEGY_NAME` from a strategy file.
+- `strategies/`: repository-root strategy modules. `strategies/study_v17.py` is an ordinary case-level strategy, not a framework component.
+- `cases/study_v17/data.py`: case-level data assembly for the external study inputs.
 
-The README describes a flow with three primary phases:
+Dependencies point inward toward contracts. The engine must not import a concrete data source, strategy, evaluation convention, or case module. The runner is the only module that composes all layers.
 
-1. Read data
-   - Adapt raw source data into standard fields.
-   - Normalize values and align dates to the market calendar.
-   - Produce ready-to-consume structures such as a wide NAV table, metadata lookup dictionaries, and a date-based fund pool snapshot.
+## Strategy contract
 
-2. Run the backtest engine
-   - Walk the trading calendar.
-   - On rebalance dates, assemble a context object and call `strategy.decide(context)`.
-   - Validate the target weights.
-   - Execute the trade with a cost model and update holdings/cash/cost logs.
-   - Accumulate daily portfolio NAV using the holdings and returns.
+A strategy file exposes `create_strategy()` returning an object with `decide(context) -> Mapping[str, float]`. Target weights may sum to less than 1; the remainder stays in cash. Strategies may keep internal state across rebalances, but portfolio state, trades and costs belong to the engine.
 
-3. Produce results and evaluation
-   - The engine emits raw result objects: NAV series, holdings series, trade logs, cost logs, and config snapshots.
-   - The evaluation layer consumes those results and calculates returns, risk, relative metrics, turnover, and cost metrics without altering the engine behavior.
+The engine controls when `decide()` is called. It runs on scheduled rebalance dates only.
 
-The architectural backbone is a contract-centered dependency model:
+## Key mechanisms
 
-- `fundbacktesting/contracts.py`: shared market data, strategy context, configuration, and result types.
-- `fundbacktesting/engine.py`: owns rebalance scheduling, portfolio state, target validation, trade execution, and costs.
-- `fundbacktesting/adapter.py`: maps the sample workbook layout into source-independent market data.
-- `strategies/`: repository-root folder for user-editable strategy modules; each module exposes `create_strategy()` and may define `STRATEGY_NAME`.
-- `fundbacktesting/evaluation.py`: computes metrics only from the result object.
-- `fundbacktesting/runner.py`: outer composition and CSV/JSON output.
-- `fundbacktesting/strategy_loader.py`: loads the selected strategy module from its file path.
+- `rebalance_frequency`: `none`, `daily`, `weekly`, `monthly`.
+- `rebalance_dates`: explicit tuple of dates; takes precedence over frequency and intersects with the configured range.
+- `decision_lag`: separates visible data date from execution date. `context.current_date` is the visible date; `context.decision_date` is the execution date.
+- `context.history`: legacy view including data through `current_date`. Use `context.history_before_current` for strict point-in-time data.
+- `MarketData.risk_free_rates`, `MarketData.fund_meta`, `MarketData.source_fingerprints`: optional context passed through by the framework and interpreted only by strategies or evaluation conventions.
+- `charge_initial_cost=False`: first build records trades but no cost and no turnover diagnostic.
+- `metric_convention`: `framework` or `daily_365`. Do not mix metrics across conventions.
+- `EvaluationResult`: carries `metrics`, `convention`, `units` and `convention_notes`; `as_dict()` is the compatibility view.
+- `run_from_files()` writes the run manifest with code version, environment, input fingerprints, source hashes and config snapshot.
 
-The default workbook is `data/Data.xlsx`. Its adapter reads fund names from row 4, codes from row 5, and dated adjusted NAV values from row 6 onward; change `DATA_FILE` in `fundbacktesting/__main__.py` to select another workbook. The runner writes each run's trajectory and config snapshot under `results/<run_id>/`, while keeping the aggregate `metrics_summary.csv` at the results root.
-Output filenames start with the strategy name and run timestamp; `RESULT_NAME` in `fundbacktesting/__main__.py` can override the shared output prefix.
+## Metric conventions
 
-The runner is the composition boundary; keep imports flowing inward to contracts. The engine must not depend on a concrete data source, strategy, or evaluation implementation.
+- `framework`: month-end returns, 12-period annualization, fixed annual risk-free rate, high-water-mark drawdown from 1.0, two-way notional turnover, historical VaR/CVaR.
+- `daily_365`: 365 calendar-day annualization, sample daily volatility scaled by √252, daily risk-free series with 0.016 default, drawdown from the first NAV, weight-difference one-way/two-way turnover, `rebalance_count_sum`.
 
-## Key conventions
+## Boundaries
 
-These conventions are more important than file-level details because they define the design intent of the repository:
+Do not add a plugin registry, a built-in study workflow, benchmark attribution, live trading, or fund subscription/redemption confirmation lag. Do not move specific research rules or terminology into `fundbacktesting/`. External baselines are acceptance artifacts only.
 
-- Unidirectional dependency boundaries: adapters depend on contracts, the engine depends on contracts, strategies depend on contracts, and the evaluation layer depends on result contracts. The engine does not know about concrete data sources or concrete strategy implementations.
-- Time is controlled by the engine, not the strategy. Strategies are asked only on rebalance dates and do not decide when the engine runs.
-- Strategies are pure decision functions: `decide(context) -> target`, with state changes handled by the executor rather than inside strategy code. Target fund weights may sum to less than 1; the remainder is retained as cash.
-- Execution and decision are separated. The strategy declares the desired target weights; the executor determines how to trade to reach those weights and how much the trade costs.
-- Cost logic is centralized. Fees, slippage, and holding-period penalties should live in one execution/cost model rather than being spread across strategies or adapters.
-- Data-source independence is a core principle. The system must consume source-specific inputs only through adapters that convert them into standard contract objects.
-- The result object is the canonical source of truth for performance analysis. The evaluation layer consumes it, rather than re-deriving outcomes from internal engine state.
-- Configuration is data, not code. Parameter and mapping changes should not require structural code changes in the engine or strategies.
-- Use the `Strategy` protocol (`decide(context) -> target weights`) when adding a strategy; keep portfolio mutation and transaction-cost calculations in the engine.
-- Preserve the data availability rule: do not backfill pre-inception NAVs. The engine may mark an existing position at its last observed NAV between observations.
-- Add behavior tests under `tests/` and use the exact unittest command above, or its single-test form.
-
-## Working in this repository
-
-- Use [README.md](../README.md) as the main source of truth for system boundaries, sample data format, and the execution assumption.
-- When implementing code, keep the design layered and contract-based rather than mixing engine logic, data-source logic, and evaluation logic together.
-- Prefer a clean mapping from raw data sources to standard contracts, then from contracts to execution and evaluation.
-- Do not introduce a direct dependency from the engine to a specific source, strategy, or evaluation model; keep that coupling at the orchestration boundary only.
+When adding behavior, add tests under `tests/`. Preserve backward compatibility for `load_market_data()`, existing output filenames, and `evaluate()` compatibility views unless explicitly asked to change them.

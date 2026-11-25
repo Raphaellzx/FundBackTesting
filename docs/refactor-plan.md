@@ -46,7 +46,7 @@
 | `runner.py` | 校验 run_id、串联各层、写四份 CSV 与两份 JSON、更新汇总表 | 增加运行清单与约定记录 |
 | `strategy_loader.py` | 从 `.py` 加载 `create_strategy()` 与 `STRATEGY_NAME`，失败回滚 `sys.modules` | 不改 |
 | `__init__.py` | 导出 5 个公共名字 | 按需导出新增类型 |
-| `tests/test_backtest.py` | 13 个行为测试，覆盖调仓、成本、校验、适配与输出 | 全部保留，另增测试 |
+| `tests/test_backtest.py` | 12 个行为测试，覆盖调仓、成本、校验、适配与输出 | 全部保留，另增测试 |
 
 工作区存在未提交改动：`fundbacktesting/__main__.py` 已修改、`compare/` 下三个文件已删除、`基金回测/` 未跟踪。改造前先建分支并备份，不覆盖这些改动。
 
@@ -61,8 +61,8 @@
 - `MarketData` 新增可选字段：`risk_free_rates: Mapping[date, float] | None`、`fund_meta: Mapping[str, FundMeta] | None`、`source_fingerprints: Mapping[str, str] | None`。
 - 新增 `FundMeta` 冻结数据类：`product_type`、`inception_date`、`eligibility_start`、`name`。均可选。
 - `BacktestContext` 新增 `history_before_current`：截至决策日**不含当日**的净值历史；原 `history` 保留含当日语义以兼容。
-- 新增 `loads_on_or_before()` 或等价辅助函数，由策略自行决定使用哪一口径。
-- 无风险利率缺失时由使用的计算约定显式报错，不静默回退默认值。
+- `history_before_current` 即为严格时点口径；策略自行决定使用哪一口径，不另加读取辅助函数。
+- 无风险利率按计算约定处理：`framework` 使用配置中的固定年化利率，`daily_365` 使用逐日序列，缺失日按 0.016 处理并在 `convention_notes` 中声明。
 
 ### 4.2 显式再平衡计划
 
@@ -91,11 +91,11 @@
 
 **改法**
 
-- `evaluate(result, convention="framework")` 新增约定参数，默认保持现有 13 个测试口径。
+- `evaluate(result, convention="framework")` 新增约定参数，默认保持现有测试所用口径。
 - 约定以枚举或注册表实现，至少提供两套：`framework`（现状）与 `daily_365`（日频口径）。
 - `daily_365` 约定：按自然日年化、日收益按 √252 缩放、逐日无风险利率、回撤自区间首日起算、换手率按单边口径。
 - 结果由裸 dict 改为 `EvaluationResult` 冻结数据类；为兼容可继续提供 dict 视图，但字段、单位与口径必须可查。
-- 换手率字段明确命名：`turnover_two_way` 与 `turnover_one_way`，不再用含糊的 `annual_turnover`。
+- 日频约定使用明确的 `turnover_two_way_annualized` 与 `turnover_one_way_annualized`；`framework` 保留 `annual_turnover` 以兼容既有调用方。
 
 ## 5. 文件级改造清单
 
@@ -110,7 +110,7 @@
 | `fundbacktesting/__init__.py` | 导出新增公共类型与函数 |
 | `strategies/<study>.py`（新增） | 研究策略实现，使用上述通用机制；策略内部规则不进入框架 |
 | `pyproject.toml`（新增） | setuptools 打包声明，依赖 openpyxl |
-| `tests/` | 保留 13 个原测试；新增显式再平衡日、初始成本、两种约定、适配器、前视偏差与基准比对测试 |
+| `tests/` | 保留 12 个原测试；新增显式再平衡日、初始成本、两种约定、适配器、前视偏差与基准比对测试 |
 | `README.md`、`.github/copilot-instructions.md` | 拆分为“现状”与“目标”；删除未实现能力的宣称；统一术语 |
 
 ## 6. 通用机制如何完成原有测试
@@ -139,9 +139,9 @@
 
 ## 8. 验收标准
 
-1. `python -m unittest discover -s tests` 全部通过，原 13 项断言不变。
+1. `python -m unittest discover -s tests` 全部通过，原 12 项断言不变。
 2. 新增测试覆盖四项通用能力与回归基准比对。
-3. 研究策略实现跑出的六项主指标落入既有容差。
+3. 研究策略实现跑出的七项主指标落入既有容差。
 4. 无前视偏差测试通过：决策日修改当日净值不改变该日目标权重。
 5. 每次运行生成运行清单，输入指纹与配置可复核。
 6. 框架代码与文档中不出现具体研究的专有名词。
@@ -170,3 +170,11 @@
 - 不模拟基金申赎确认日差；交易确认滞后仅提供参数位，默认 0。
 - 不自动消除候选集合的存续偏差；样本内参数寻优结果必须标注为样本内。
 - 不在改动进行期间反复维护 AOCI 索引。
+
+## 11. 实施结果
+
+- 改造在 `refactor/generic-backtest` 分支完成。
+- 完整测试套件共 28 项，全部通过；原有 12 项断言保持不变。
+- 研究策略在 17 个决策日逐期持仓与外部研究包 0 分歧；七项主指标全部落入基准容差。
+- 候选遍历改为确定顺序，逐期结果不再受 Python 字符串哈希随机化影响；已在多个 `PYTHONHASHSEED` 下复核。
+- `strategies/study_v17.py` 是普通策略实现，框架核心不感知其中的研究规则。

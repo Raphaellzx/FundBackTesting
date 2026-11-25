@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable, Mapping
+from datetime import date
 
-from .contracts import BacktestResult
+from .contracts import BacktestResult, EvaluationResult
 
 _MONTHS_PER_YEAR = 12
+_DAYS_PER_YEAR = 365
+_TRADING_DAYS_PER_YEAR = 252
+_DEFAULT_DAILY_RISK_FREE_RATE = 0.016
 
 
-def evaluate(result: BacktestResult) -> dict[str, float | int | None]:
-    """Calculate monthly return metrics and daily drawdown and tail risk."""
+def _framework_metrics(result: BacktestResult) -> dict[str, float | int | None]:
+    """月度再平衡约定：月频年化、固定年化无风险利率、历史最高点起算回撤、双边换手。"""
     nav_points = result.nav_series
     if not nav_points:
         raise ValueError("Cannot evaluate an empty NAV series.")
@@ -145,3 +150,144 @@ def evaluate(result: BacktestResult) -> dict[str, float | int | None]:
         "annual_risk_free_rate": annual_risk_free_rate,
         "annual_mar": annual_mar,
     }
+
+
+def _daily_365_metrics(result: BacktestResult) -> dict[str, float | int | None]:
+    """日频约定：自然日年化、日收益按 √252 缩放、逐日无风险利率、区间首日起算回撤。"""
+    nav_points = result.nav_series
+    if not nav_points:
+        raise ValueError("Cannot evaluate an empty NAV series.")
+    if len(nav_points) < 2:
+        raise ValueError("Daily-365 convention requires at least two NAV points.")
+
+    nav_values = [point.value for point in nav_points]
+    if any(not math.isfinite(value) or value <= 0 for value in nav_values):
+        raise ValueError("NAV values must be finite and greater than zero.")
+
+    dates = [point.date for point in nav_points]
+    days = (dates[-1] - dates[0]).days
+    if days <= 0:
+        raise ValueError("NAV series must span a positive number of calendar days.")
+    years = days / _DAYS_PER_YEAR
+
+    annualized_return = nav_values[-1] ** (_DAYS_PER_YEAR / days) - 1.0
+
+    daily_returns = [
+        current / previous - 1.0
+        for previous, current in zip(nav_values, nav_values[1:])
+    ]
+    mean_return = sum(daily_returns) / len(daily_returns)
+    variance = (
+        sum((value - mean_return) ** 2 for value in daily_returns)
+        / (len(daily_returns) - 1)
+        if len(daily_returns) > 1
+        else 0.0
+    )
+    annualized_volatility = math.sqrt(variance) * math.sqrt(_TRADING_DAYS_PER_YEAR)
+
+    peak = nav_values[0]
+    max_drawdown = 0.0
+    for value in nav_values:
+        peak = max(peak, value)
+        max_drawdown = min(max_drawdown, value / peak - 1.0)
+
+    rates = result.risk_free_rates
+    if rates is None:
+        raise ValueError(
+            "Daily-365 convention requires a risk-free rate series on the result."
+        )
+    used_rates = [float(rates.get(day, _DEFAULT_DAILY_RISK_FREE_RATE)) for day in dates]
+    if any(not math.isfinite(rate) for rate in used_rates):
+        raise ValueError("Risk-free rate series contains non-finite values.")
+    average_risk_free_rate = sum(used_rates) / len(used_rates)
+
+    sharpe = (
+        (annualized_return - average_risk_free_rate) / annualized_volatility
+        if annualized_volatility > 0
+        else None
+    )
+    calmar = (
+        annualized_return / abs(max_drawdown) if max_drawdown < 0 else None
+    )
+
+    turnover_two_way = sum(turn for _, turn in result.rebalance_turnover) / years
+    turnover_one_way = turnover_two_way / 2.0
+
+    return {
+        "total_return": nav_values[-1] - 1.0,
+        "annualized_return": annualized_return,
+        "annualized_volatility": annualized_volatility,
+        "max_drawdown": max_drawdown,
+        "sharpe_ratio": sharpe,
+        "calmar_ratio": calmar,
+        "turnover_one_way_annualized": turnover_one_way,
+        "turnover_two_way_annualized": turnover_two_way,
+        "rebalance_count_sum": sum(result.rebalance_changes),
+        "elapsed_calendar_days": days,
+        "elapsed_years": years,
+        "average_daily_risk_free_rate": average_risk_free_rate,
+        "total_cost": sum(record.cost for record in result.cost_log),
+        "rebalance_count": int(result.config_snapshot["rebalance_count"]),
+        "evaluation_start_date": dates[0].isoformat(),
+        "evaluation_end_date": dates[-1].isoformat(),
+    }
+
+
+_UNITS: Mapping[str, Mapping[str, str]] = {
+    "framework": {
+        "annualized_return": "decimal per year",
+        "annualized_volatility": "decimal per year",
+        "max_drawdown": "decimal",
+        "annual_turnover": "two-way notional / capital / year",
+    },
+    "daily_365": {
+        "annualized_return": "decimal per year, 365 calendar days",
+        "annualized_volatility": "decimal per year, sqrt(252) scaling",
+        "max_drawdown": "decimal from period start",
+        "turnover_one_way_annualized": "one-way notional / capital / year",
+        "turnover_two_way_annualized": "two-way notional / capital / year",
+    },
+}
+
+_NOTES: Mapping[str, Mapping[str, str]] = {
+    "framework": {
+        "periods_per_year": "12 months",
+        "risk_free_rate": "fixed annual rate from config",
+        "drawdown_origin": "running high-water mark from 1.0",
+    },
+    "daily_365": {
+        "periods_per_year": "365 calendar days for return, 252 trading days for volatility",
+        "risk_free_rate": "daily series, missing days use 0.016",
+        "drawdown_origin": "first NAV value of the evaluation window",
+    },
+}
+
+_CONVENTIONS: Mapping[str, Callable[[BacktestResult], dict[str, float | int | None]]] = {
+    "framework": _framework_metrics,
+    "daily_365": _daily_365_metrics,
+}
+
+__all__ = ["evaluate", "available_conventions"]
+
+
+def available_conventions() -> tuple[str, ...]:
+    return tuple(sorted(_CONVENTIONS))
+
+
+def evaluate(
+    result: BacktestResult, convention: str | None = None
+) -> EvaluationResult:
+    """计算绩效指标。默认使用框架约定；计算约定由配置或显式参数决定。"""
+    selected = convention or str(result.config_snapshot.get("metric_convention", "framework"))
+    if selected not in _CONVENTIONS:
+        raise ValueError(
+            f"Unknown metric convention {selected!r}; available: "
+            f"{', '.join(available_conventions())}"
+        )
+    metrics = _CONVENTIONS[selected](result)
+    return EvaluationResult(
+        metrics=metrics,
+        convention=selected,
+        units=dict(_UNITS.get(selected, {})),
+        convention_notes=dict(_NOTES.get(selected, {})),
+    )

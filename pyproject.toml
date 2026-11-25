@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fundbacktesting"
+version = "0.1.0"
+description = "A contract-driven, general-purpose fund backtesting framework"
+requires-python = ">=3.10"
+dependencies = ["openpyxl>=3.1,<4"]
+
+[tool.setuptools]
+packages = ["fundbacktesting"]

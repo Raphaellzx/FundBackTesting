@@ -47,11 +47,25 @@ def _validate_config(config: BacktestConfig) -> None:
         and config.start_date > config.end_date
     ):
         raise ValueError("start_date must be on or before end_date.")
+    if not isinstance(config.decision_lag, int) or config.decision_lag < 0:
+        raise ValueError("decision_lag must be a nonnegative integer.")
+    if config.rebalance_dates is not None:
+        if not isinstance(config.rebalance_dates, tuple):
+            raise ValueError("rebalance_dates must be a tuple of dates or None.")
+        if any(not isinstance(item, date) for item in config.rebalance_dates):
+            raise ValueError("rebalance_dates must contain only date objects.")
 
 
 def _rebalance_dates(
-    dates: tuple[date, ...], frequency: str
+    dates: tuple[date, ...], config: BacktestConfig
 ) -> set[date]:
+    if config.rebalance_dates is not None:
+        selected = set(config.rebalance_dates) & set(dates)
+        if not selected:
+            raise ValueError("No explicit rebalance date falls in the backtest range.")
+        return selected
+
+    frequency = config.rebalance_frequency
     if frequency == "none":
         return {dates[0]} if dates else set()
     if frequency == "daily":
@@ -118,7 +132,7 @@ def run_backtest(
     if not dates:
         raise ValueError("No market data falls within the configured date range.")
 
-    scheduled_dates = _rebalance_dates(dates, config.rebalance_frequency)
+    scheduled_dates = _rebalance_dates(dates, config)
     units: dict[str, float] = {}
     last_prices: dict[str, float] = {}
     cash = config.initial_capital
@@ -127,6 +141,9 @@ def run_backtest(
     trade_log: list[TradeRecord] = []
     cost_log: list[CostRecord] = []
     rebalance_count = 0
+    rebalance_changes: list[int] = []
+    rebalance_turnover: list[tuple[date, float]] = []
+    previous_target_codes: frozenset[str] | None = None
 
     for index, trading_date in enumerate(dates):
         daily_prices = market_data.prices[trading_date]
@@ -142,11 +159,13 @@ def run_backtest(
             raise ValueError(f"Portfolio value became nonpositive on {trading_date}.")
 
         if trading_date in scheduled_dates:
+            decision_index = max(0, index - config.decision_lag)
+            decision_date = dates[decision_index]
             context = BacktestContext(
-                current_date=trading_date,
+                current_date=decision_date,
                 history={
                     historical_date: market_data.prices[historical_date]
-                    for historical_date in dates[: index + 1]
+                    for historical_date in dates[: decision_index + 1]
                 },
                 holdings={
                     fund_code: value / portfolio_value
@@ -154,10 +173,22 @@ def run_backtest(
                     if value > 0
                 },
                 active_funds=active_funds,
+                history_before_current={
+                    historical_date: market_data.prices[historical_date]
+                    for historical_date in market_data.dates
+                    if historical_date < decision_date
+                },
+                risk_free_rates=market_data.risk_free_rates,
+                fund_meta=market_data.fund_meta,
+                decision_date=trading_date,
             )
             target = _validated_target(
                 strategy.decide(context), active_funds, trading_date
             )
+
+            initial_build = not current_values
+            exempt_initial_cost = initial_build and not config.charge_initial_cost
+            effective_fee_rate = 0.0 if exempt_initial_cost else config.fee_rate
 
             estimated_cost = 0.0
             for _ in range(100):
@@ -167,7 +198,7 @@ def run_backtest(
                     for fund_code, weight in target.items()
                 }
                 all_funds = set(current_values) | set(target_values)
-                next_cost = config.fee_rate * sum(
+                next_cost = effective_fee_rate * sum(
                     abs(target_values.get(fund_code, 0.0) - current_values.get(fund_code, 0.0))
                     for fund_code in all_funds
                 )
@@ -196,7 +227,7 @@ def run_backtest(
                 price = last_prices[fund_code]
                 trade_units = delta_value / price
                 notional = abs(delta_value)
-                cost = notional * config.fee_rate
+                cost = notional * effective_fee_rate
                 total_cost += cost
                 direction = "BUY" if delta_value > 0 else "SELL"
                 trade_log.append(
@@ -209,15 +240,16 @@ def run_backtest(
                         cost=cost,
                     )
                 )
-                cost_log.append(
-                    CostRecord(
-                        date=trading_date,
-                        fund_code=fund_code,
-                        notional=notional,
-                        fee_rate=config.fee_rate,
-                        cost=cost,
+                if not exempt_initial_cost:
+                    cost_log.append(
+                        CostRecord(
+                            date=trading_date,
+                            fund_code=fund_code,
+                            notional=notional,
+                            fee_rate=effective_fee_rate,
+                            cost=cost,
+                        )
                     )
-                )
 
             units = {
                 fund_code: value / last_prices[fund_code]
@@ -232,6 +264,29 @@ def run_backtest(
             if abs(cash) <= config.initial_capital * 1e-12:
                 cash = 0.0
             rebalance_count += 1
+            current_codes = frozenset(target)
+            rebalance_changes.append(
+                0
+                if previous_target_codes is None
+                else len(previous_target_codes ^ current_codes) // 2
+            )
+            previous_target_codes = current_codes
+
+            current_weights = {
+                fund_code: value / portfolio_value
+                for fund_code, value in current_values.items()
+            }
+            target_weights = {
+                fund_code: weight for fund_code, weight in target.items()
+            }
+            weight_turnover = sum(
+                abs(target_weights.get(fund_code, 0.0) - current_weights.get(fund_code, 0.0))
+                for fund_code in set(current_weights) | set(target_weights)
+            )
+            if weight_turnover > _TRADE_TOLERANCE and not (
+                initial_build and not config.charge_initial_cost
+            ):
+                rebalance_turnover.append((trading_date, weight_turnover))
 
         marked_values = {
             fund_code: holding_units * last_prices[fund_code]
@@ -267,6 +322,20 @@ def run_backtest(
         "end_date": dates[-1].isoformat(),
         "source_sha256": market_data.source_sha256,
         "rebalance_count": rebalance_count,
+        "rebalance_dates": (
+            [item.isoformat() for item in sorted(config.rebalance_dates)]
+            if config.rebalance_dates is not None
+            else None
+        ),
+        "charge_initial_cost": config.charge_initial_cost,
+        "metric_convention": config.metric_convention,
+        "evaluation_start_date": (
+            config.evaluation_start_date.isoformat()
+            if config.evaluation_start_date is not None
+            else None
+        ),
+        "decision_lag": config.decision_lag,
+        "source_fingerprints": dict(market_data.source_fingerprints or {}),
     }
     return BacktestResult(
         nav_series=tuple(nav_series),
@@ -274,4 +343,7 @@ def run_backtest(
         trade_log=tuple(trade_log),
         cost_log=tuple(cost_log),
         config_snapshot=config_snapshot,
+        rebalance_changes=tuple(rebalance_changes),
+        rebalance_turnover=tuple(rebalance_turnover),
+        risk_free_rates=market_data.risk_free_rates,
     )
