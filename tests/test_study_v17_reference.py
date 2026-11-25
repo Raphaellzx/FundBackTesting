@@ -2,73 +2,76 @@ from __future__ import annotations
 
 import hashlib
 import unittest
-from datetime import date
-from pathlib import Path
 
-from cases.study_v17.data import build_market_data
 from fundbacktesting.contracts import BacktestConfig
 from fundbacktesting.engine import run_backtest
 from fundbacktesting.evaluation import evaluate
 from fundbacktesting.reference import compare_to_baseline, load_baseline
 from fundbacktesting.strategy_loader import load_strategy
+from studies.study_v17 import config
+from studies.study_v17.build import build_market_data
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data"
-BASELINE_PATH = Path(__file__).resolve().parent / "reference" / "study-baseline.json"
-STRATEGY_PATH = ROOT / "strategies" / "study_v17.py"
-
-INPUT_FILES = ("nav_pub119.csv", "nav5c.csv", "rf1y.csv")
+BASELINE_PATH = config.BASELINE_PATH
+STRATEGY_PATH = config.STRATEGY_PATH
+INPUT_FILES = config.INPUT_FILES
+INPUT_DIR = config.INPUT_DIR
 
 
 def _reference_inputs_available() -> bool:
     return (
         STRATEGY_PATH.is_file()
         and BASELINE_PATH.is_file()
-        and all((DATA_DIR / name).is_file() for name in INPUT_FILES)
+        and all((INPUT_DIR / name).is_file() for name in INPUT_FILES)
     )
 
 
-@unittest.skipUnless(_reference_inputs_available(), "reference inputs are not available")
+@unittest.skipUnless(_reference_inputs_available(), "study inputs are not available")
 class StudyV17ReferenceTests(unittest.TestCase):
-    """用外置基准验证通用框架上的研究策略实现。"""
+    """用研究目录内的外置基准验证通用框架上的策略实现。"""
 
     @classmethod
     def setUpClass(cls) -> None:
         cls.baseline = load_baseline(BASELINE_PATH)
-        params = cls.baseline["parameters"]
         cls.strategy, cls.strategy_name = load_strategy(STRATEGY_PATH)
         cls.market_data = build_market_data()
         cls.config = BacktestConfig(
-            initial_capital=float(params["initial_capital"]),
-            rebalance_frequency="none",
-            fee_rate=float(params["fee_rate"]),
-            start_date=date.fromisoformat(params["start_date"]),
-            end_date=date.fromisoformat(params["end_date"]),
-            rebalance_dates=tuple(
-                date.fromisoformat(day) for day in cls.baseline["rebalance_dates"]
-            ),
-            charge_initial_cost=False,
-            metric_convention="daily_365",
+            initial_capital=config.INITIAL_CAPITAL,
+            rebalance_frequency=config.REBALANCE_FREQUENCY,
+            fee_rate=config.FEE_RATE,
+            start_date=config.START_DATE,
+            end_date=config.END_DATE,
+            rebalance_dates=config.REBALANCE_DATES,
+            charge_initial_cost=config.CHARGE_INITIAL_COST,
+            metric_convention=config.METRIC_CONVENTION,
         )
         cls.result = run_backtest(cls.market_data, cls.strategy, cls.config)
-        cls.evaluation = evaluate(cls.result, "daily_365")
+        cls.evaluation = evaluate(cls.result, config.METRIC_CONVENTION)
 
     def test_strategy_is_loaded_through_standard_slot(self) -> None:
-        self.assertEqual(self.strategy_name, "study_v17")
+        self.assertEqual(self.strategy_name, config.STUDY_NAME)
         self.assertTrue(callable(self.strategy.decide))
+
+    def test_study_config_matches_recorded_baseline_parameters(self) -> None:
+        recorded = self.baseline["parameters"]
+        self.assertEqual(recorded["initial_capital"], config.INITIAL_CAPITAL)
+        self.assertEqual(recorded["fee_rate"], config.FEE_RATE)
+        self.assertEqual(recorded["start_date"], config.START_DATE.isoformat())
+        self.assertEqual(recorded["end_date"], config.END_DATE.isoformat())
+        self.assertEqual(
+            tuple(self.baseline["rebalance_dates"]),
+            tuple(day.isoformat() for day in config.REBALANCE_DATES),
+        )
 
     def test_input_fingerprints_match_baseline(self) -> None:
         expected = self.baseline["inputs"]
         self.assertEqual(set(expected), set(INPUT_FILES))
         for name, digest in expected.items():
             with self.subTest(input=name):
-                actual = hashlib.sha256((DATA_DIR / name).read_bytes()).hexdigest()
+                actual = hashlib.sha256((INPUT_DIR / name).read_bytes()).hexdigest()
                 self.assertEqual(actual, digest)
 
     def test_every_rebalance_holding_matches_reference(self) -> None:
-        expected_dates = tuple(
-            date.fromisoformat(day) for day in self.baseline["rebalance_dates"]
-        )
+        expected_dates = config.REBALANCE_DATES
         actual_by_date = {
             snapshot.date: {
                 code for code, weight in snapshot.weights.items() if weight > 0
@@ -107,7 +110,7 @@ class StudyV17ReferenceTests(unittest.TestCase):
 
     def test_baseline_is_not_a_calculation_input(self) -> None:
         self.assertNotIn("metrics", tuple(self.result.config_snapshot))
-        self.assertEqual(self.config.metric_convention, "daily_365")
+        self.assertEqual(self.config.metric_convention, config.METRIC_CONVENTION)
         self.assertEqual(self.baseline["schema"], "reference-baseline/v1")
 
 

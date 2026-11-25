@@ -107,11 +107,19 @@ from fundbacktesting.adapter import (
 
 `run_from_files()` 每次写出 `{run_id}_nav.csv`、`{run_id}_holdings.csv`、`{run_id}_trades.csv`、`{run_id}_costs.csv`、`{run_id}_metrics.json`、`{run_id}_config.json` 和 `{run_id}_manifest.json`，并更新 `results/metrics_summary.csv`。运行清单记录代码版本、Python 与平台、指标约定、输入指纹、源文件哈希和配置快照。
 
-## 用例与回归测试
+## 研究与回归测试
 
-`cases/study_v17/data.py` 把三份外部 CSV 组装成框架通用的 `MarketData`。`strategies/study_v17.py` 是普通策略实现，具体规则只存在于该策略中。
+研究按目录组织：`studies/<研究名>/` 是自包含的研究单元，配置、输入数据、装配逻辑、基准、入口和结果都在该目录内。目前有 `studies/study_v17/`，其详细说明见该目录下的 `README.md`。
 
-`tests/test_study_v17_reference.py` 在 `data/` 下三份输入 CSV 与 `tests/reference/study-baseline.json` 存在时运行：它用外置基准检查输入哈希、17 期逐期持仓和七项主指标。该测试是验收层，不会改变框架计算；缺少输入或基准时自动跳过。原研究包目录已删除，逐期结果与参数已固化在基准文件中。
+跑这个研究：
+
+```powershell
+py -3.13 studies/study_v17/run.py
+```
+
+`studies/study_v17/config.py` 是参数唯一入口；`studies/study_v17/build.py` 把 `inputs/` 下三份 CSV 组装成框架通用的 `MarketData`。策略实现仍在 `strategies/study_v17.py`，具体规则只存在于该策略中，框架核心不认识这个研究。新增研究时复制一个研究目录并改配置与策略路径即可。
+
+`tests/test_study_v17_reference.py` 用研究目录内的 `baseline.json` 检查输入哈希、配置与基准参数一致、17 期逐期持仓和七项主指标。该测试是验收层，不会改变框架计算；缺少输入或基准时自动跳过。基准只用于验收，不参与计算。
 
 `tests/test_generic_backtest.py` 覆盖显式再平衡日、时点数据、决策滞后、初始成本开关、两套绩效约定、基准比对、CSV 适配器和运行清单。
 

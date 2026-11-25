@@ -1,4 +1,25 @@
-# Python bytecode and caches
+# 白名单：默认忽略，仅放行项目核心代码、配置与 studies
+*
+
+# 根目录配置与说明
+!.gitignore
+!README.md
+!pyproject.toml
+!requirements.txt
+!.gitattributes
+
+# 核心代码
+!fundbacktesting/
+!fundbacktesting/**
+!strategies/
+!strategies/**
+!tests/
+!tests/**
+
+# 研究目录不纳入版本控制
+studies/
+
+# 运行时与本地产物（在放行规则之后重新忽略）
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -7,20 +28,10 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
-
-# Build artifacts
 build/
 dist/
-
-# Virtual environments
 .venv/
 venv/
-
-# Runtime outputs (keep the directory placeholder tracked)
-results/*
-!results/.gitkeep
-
-# Editor and operating-system files
 .DS_Store
 Thumbs.db
 *.swp
