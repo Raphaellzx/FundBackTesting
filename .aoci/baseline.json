@@ -1,0 +1,375 @@
+{
+  "version": 1,
+  "created_at": "2026-11-25T07:13:50Z",
+  "updated_at": "2026-11-25T07:29:12Z",
+  "files": {
+    ".gitattributes": {
+      "role": "index",
+      "sha256": "21fa16a2122e2b0360b47502c577428b645437e08e9e87ffba661f84853cb476",
+      "size": 291,
+      "normalized_sha256": "21fa16a2122e2b0360b47502c577428b645437e08e9e87ffba661f84853cb476"
+    },
+    ".github/copilot-instructions.md": {
+      "role": "index",
+      "sha256": "d465427a7a9cd22eea32dbeada9b4e94c448a18fceca0ca20967d9a485da3e8c",
+      "size": 6978,
+      "normalized_sha256": "bc16fc90f525ec016a698c3281ab91a6c74e94b12673058f1be034133fc6286e"
+    },
+    ".gitignore": {
+      "role": "index",
+      "sha256": "4ffa59530d3c2446a37887fe80cf1fe86d6212fe28adc9a6524c2a57f4dcd519",
+      "size": 55,
+      "normalized_sha256": "4f60f7c8148a793d8af1aa5a62fffd7c3dd0f647e178614c427d9fb92646b73a"
+    },
+    ".vscode/settings.json": {
+      "role": "index",
+      "sha256": "08cb8065f64b656719d75299f1c153c6667b46d549e18af1749ac4fea610de50",
+      "size": 134,
+      "normalized_sha256": "823ff93862076e35f077c339bb80986123766f284445596fe636d43337356466"
+    },
+    ".workbuddy/memory/2026-11-25.md": {
+      "role": "index",
+      "sha256": "4985e00869675254ada36cb51cc6616b27c3551b90d059b9f8077cf63f6ea12d",
+      "size": 1124,
+      "normalized_sha256": "4985e00869675254ada36cb51cc6616b27c3551b90d059b9f8077cf63f6ea12d"
+    },
+    "AGENTS.md": {
+      "role": "index",
+      "sha256": "ab7266ce23dc082964a0e0dd0ac755ec53497e2eb217607b3a04ca317627be3e",
+      "size": 14180,
+      "normalized_sha256": "ab7266ce23dc082964a0e0dd0ac755ec53497e2eb217607b3a04ca317627be3e"
+    },
+    "README.md": {
+      "role": "index",
+      "sha256": "554a601bd61955dfca4bf244ea1c290095ad82663236414b882ff68652e03c07",
+      "size": 16400,
+      "normalized_sha256": "12765f46e82e7b5b4ed82c5543bb1eab1b50327128ef4d0f3d9a6fce79a06f62"
+    },
+    "aoci.code.txt": {
+      "role": "index",
+      "sha256": "a840b1e3bbb4fef30683a4e25d7ec82d063bf4f26bd6c7097409da422e7ccefc",
+      "size": 25638,
+      "normalized_sha256": "a840b1e3bbb4fef30683a4e25d7ec82d063bf4f26bd6c7097409da422e7ccefc"
+    },
+    "aoci.meta.txt": {
+      "role": "index",
+      "sha256": "5ccd06dd2198435423141174e4f3eaed7e7645644070e0b5cc2e20dbc889172a",
+      "size": 2187,
+      "normalized_sha256": "5ccd06dd2198435423141174e4f3eaed7e7645644070e0b5cc2e20dbc889172a"
+    },
+    "aoci.txt": {
+      "role": "index",
+      "sha256": "9278fd4bf2fe081b94364da4c34b8c997dd31a1b8636ccb327f96a7b33e834a1",
+      "size": 1000,
+      "normalized_sha256": "9278fd4bf2fe081b94364da4c34b8c997dd31a1b8636ccb327f96a7b33e834a1"
+    },
+    "data/Data.xlsx": {
+      "role": "index",
+      "sha256": "66a30cc49fc65ee07b48a6884767379d30f699d1d294df9bd9d11ddf7e159175",
+      "size": 42841
+    },
+    "data/Data2.xlsx": {
+      "role": "index",
+      "sha256": "2b7cbf496c028a3c4df2656e5bbfb2aa92a1318dfe656cf57f7b9b1c05e5e09a",
+      "size": 30441
+    },
+    "fundbacktesting/__init__.py": {
+      "role": "index",
+      "sha256": "761816381d501fda661c6cc79adc47a3c6dd30f2c622af2a45e4f85015d6eba1",
+      "size": 318,
+      "normalized_sha256": "667e6dd5923d2594a3d2bbf486c421a30b17bfb205d714856e45fa9587447ed8"
+    },
+    "fundbacktesting/__main__.py": {
+      "role": "index",
+      "sha256": "796ff37b92aef73b2a925aeac28119e18cb2ee4773ed5dec9f80d03e2470b8a4",
+      "size": 2556,
+      "normalized_sha256": "c94622ca019bb04bdf3bfcfa2b96f5dd04785643cf09b766f868f80ee498c705"
+    },
+    "fundbacktesting/adapter.py": {
+      "role": "index",
+      "sha256": "9b8774109cd2d549bcf8537083ef1e575076a5c1a7adabd851749870e6ade5ca",
+      "size": 4776,
+      "normalized_sha256": "42a68e531a62c30ae4e42df048a97cb626d3527480bd27945d00555bf4eeb2b3"
+    },
+    "fundbacktesting/contracts.py": {
+      "role": "index",
+      "sha256": "e4fc37d59a1f6ec3278422bb1be09b259381eb02e9f71782c77801eb29c94c54",
+      "size": 1898,
+      "normalized_sha256": "77b468cdc45051cd6cf49519db15c27f8b1f300c813aba0638a45bd265b98698"
+    },
+    "fundbacktesting/engine.py": {
+      "role": "index",
+      "sha256": "3c7108b73e353cb46dd6aa8f2bf8131ef0661bacba815b588fdd17bfcff4b3af",
+      "size": 10744,
+      "normalized_sha256": "462f3b27e556fc3d065cf030c15ed0efd5b8b25800e1eb4dd288a9951a2bd9a9"
+    },
+    "fundbacktesting/evaluation.py": {
+      "role": "index",
+      "sha256": "cfd942912206fa553783d8b9c29b428c85a0fa2d90b41ea2217cb64f0d1cb508",
+      "size": 6157,
+      "normalized_sha256": "6ed9417f8ea268e55a0c8ccc032140d9c24e2abfece04dd4ec538640ca4042bf"
+    },
+    "fundbacktesting/runner.py": {
+      "role": "index",
+      "sha256": "7b6fcf621f86448ac2884534d8ed9e299a9860f993f54586ac0fbcf059b4c820",
+      "size": 4525,
+      "normalized_sha256": "01d8a753314803acd0806c2163ab661e59addeeea454999068453355b13c0bda"
+    },
+    "fundbacktesting/strategy_loader.py": {
+      "role": "index",
+      "sha256": "001610579eaad2ac36c00decb576dd4b1e39b7eb48acc517bbf9c8a8d3ad083e",
+      "size": 2072,
+      "normalized_sha256": "e781e174f0d4910125fc528b8165e83bce30205a80d800417226417cdb421173"
+    },
+    "requirements.txt": {
+      "role": "index",
+      "sha256": "886ea41f2c62469338cff8ffe090e2110346d90ef75f906bfb3b39da012ff32c",
+      "size": 18,
+      "normalized_sha256": "9bba605fd7b6ea23038de15e5a1ae6714b3d3fb14ed2d6e6bedbfb0665ca2122"
+    },
+    "strategies/equal_weight.py": {
+      "role": "index",
+      "sha256": "65386a23afa40ea4523a5ff9164ce73164540d753fd97d08a54701f2d1ab8330",
+      "size": 580,
+      "normalized_sha256": "10b8ccad32a501b612981ebc363dac010aaaf8bc15a7fccd5a53429514ef6a6f"
+    },
+    "strategies/portfolio1_four_long_bonds.py": {
+      "role": "index",
+      "sha256": "a57ab0f6f5f5b36eed04e24a997f52a7edf1fcd8e5cf7e79cd8d09fa63636568",
+      "size": 540,
+      "normalized_sha256": "d61b02fe4e8429751d5b377f75b523802820e3a1a024f296506ddb99b37239ea"
+    },
+    "strategies/portfolio2_four_long_short_cash.py": {
+      "role": "index",
+      "sha256": "28667ddbb9c8f94502df1185f5652836b2c2007cfbfeccb06bf820565aca64cd",
+      "size": 571,
+      "normalized_sha256": "4344598c07999bc72844beedd942d50eb581fb2c2b887ef59c30b966fb60e05c"
+    },
+    "tests/test_backtest.py": {
+      "role": "observe",
+      "sha256": "a61ea67024fc3995669b1b87f5a37a99520db13d7d4c85ffbc3a37d2cc725af5",
+      "size": 13769,
+      "normalized_sha256": "5e093da871528f9c2ee7afde071e485a6fec6f467053eaa7d2f47c12d8b1e175"
+    },
+    "基金回测/.vscode/settings.json": {
+      "role": "index",
+      "sha256": "08cb8065f64b656719d75299f1c153c6667b46d549e18af1749ac4fea610de50",
+      "size": 134,
+      "normalized_sha256": "823ff93862076e35f077c339bb80986123766f284445596fe636d43337356466"
+    },
+    "基金回测/README.md": {
+      "role": "index",
+      "sha256": "c1e9d99e844c73424063e155e08895b7e6102a71145290ef96180954fb46abd1",
+      "size": 6711,
+      "normalized_sha256": "75c230dae39a9b505d7edbdfe3fbeaa4f7833207c81c5f7803e3509b95658842"
+    },
+    "基金回测/data/5只长债复权单位净值（11.20）.xlsx": {
+      "role": "index",
+      "sha256": "6a4e71f4c0f27e7e9405ad243b4795af88b0679a5366022d6c43c0a620cf5c0d",
+      "size": 47801
+    },
+    "基金回测/data/nav5c.csv": {
+      "role": "index",
+      "sha256": "ba31cba7ee98fca5859a61fe5347c6eca3084268efdae8488b89122956d050da",
+      "size": 56259,
+      "normalized_sha256": "c9dea0badcea96b4a6f9bf32b3bc9989e32e77c9981e67e8759128445b54b844"
+    },
+    "基金回测/data/nav_pub119.csv": {
+      "role": "index",
+      "sha256": "99f50276e68e0435eecc1e5a95d4e95db246f0b22aef0a81f140889c5952bbda",
+      "size": 2074239,
+      "normalized_sha256": "ef16d4337b32a492a86e1e149c94b7d3fc3325521d6eedaa9940d282a024a433"
+    },
+    "基金回测/data/rf1y.csv": {
+      "role": "index",
+      "sha256": "4041a05ac2e120a794705f9d7c21ec1f4f97221f6335bf52da424db00e26e2c2",
+      "size": 26467,
+      "normalized_sha256": "a442ff6b4a93ad68e3346eac7c23ee03c8930740a060c4ce48cd8a8bb83430c7"
+    },
+    "基金回测/data/中长债筛选结果.xlsx": {
+      "role": "index",
+      "sha256": "1916ba729005ce764d6d02e4e9da7da485545d031be611ed95a5a8414a47bd78",
+      "size": 26005
+    },
+    "基金回测/data/公募基金日频数据（11.20）.csv": {
+      "role": "index",
+      "sha256": "b576c57463c1c7f33dbd7527fddc52496d27db332bd0a46a482d5fc1667bd2d1",
+      "size": 1977917,
+      "normalized_sha256": "cc7bd3c57b86bcada1707d9ec231ef890c32427330e9fb40381e5af71d5414bd"
+    },
+    "基金回测/output/V17数字复现.txt": {
+      "role": "index",
+      "sha256": "79d16c867fd10f539aee8cae2cdb54ef7fff75f695f60ed26c1fe5822aacf1cd",
+      "size": 13323,
+      "normalized_sha256": "14a70c8ad809705c0e255d4bd0941d7fac4cf3eed82c155bcdd2907793faffbd"
+    },
+    "基金回测/pyproject.toml": {
+      "role": "index",
+      "sha256": "9d4aa0fc8cf9adb2dd7f93e818a3442c7d3312c8565d5fca25522e66e271c9bc",
+      "size": 423,
+      "normalized_sha256": "9d4aa0fc8cf9adb2dd7f93e818a3442c7d3312c8565d5fca25522e66e271c9bc"
+    },
+    "基金回测/requirements.txt": {
+      "role": "index",
+      "sha256": "4b4e31555a8cc682ac59ba0af30708d771d66a7a9e3300d44426f4c392d9aa70",
+      "size": 157,
+      "normalized_sha256": "4b4e31555a8cc682ac59ba0af30708d771d66a7a9e3300d44426f4c392d9aa70"
+    },
+    "基金回测/run_all.py": {
+      "role": "index",
+      "sha256": "068f22c1d4ae04c5f57695584d9b0f1e0b69c4b716ba2913097fd8a43858074e",
+      "size": 2447,
+      "normalized_sha256": "30872e94c97a23eaf0fac2973dcbb30380647c12a89177878c537c981673dc54"
+    },
+    "基金回测/src/bondpool/__init__.py": {
+      "role": "index",
+      "sha256": "235673f9b779c0df8f9e9f3eccb39ba4eb79e5584a32d03b0a02bdc5a27775a3",
+      "size": 1930,
+      "normalized_sha256": "235673f9b779c0df8f9e9f3eccb39ba4eb79e5584a32d03b0a02bdc5a27775a3"
+    },
+    "基金回测/src/bondpool/build.py": {
+      "role": "index",
+      "sha256": "e46ffec6c46885d9d6e1db6229934c8681c35bf6a574231e6c683303c3629c89",
+      "size": 1607,
+      "normalized_sha256": "e46ffec6c46885d9d6e1db6229934c8681c35bf6a574231e6c683303c3629c89"
+    },
+    "基金回测/src/bondpool/config.py": {
+      "role": "index",
+      "sha256": "bd02394e5ec9c0506c83fa968262849d3ee0d4ff65fd6480b700968e25e8efa6",
+      "size": 4131,
+      "normalized_sha256": "77744eed3c50b512641b23dee231eee80166bfd5e2d0eccde4dc4cd1ed88f8f5"
+    },
+    "基金回测/src/bondpool/dataset.py": {
+      "role": "index",
+      "sha256": "899f24bf33fb512a5ade2740dfcc59bac2e20cb40a4486fe3e63062287f119e5",
+      "size": 7262,
+      "normalized_sha256": "4e1676831afb57388ef1cfe7ab91bd9c64ca55795ccdaa2c336a3db161d0a64d"
+    },
+    "基金回测/src/bondpool/event.py": {
+      "role": "index",
+      "sha256": "eecdc83914d335aa129a8f9b76f13a8ec74d70429b1753ca4d07a7bd2d0ea058",
+      "size": 1743,
+      "normalized_sha256": "eecdc83914d335aa129a8f9b76f13a8ec74d70429b1753ca4d07a7bd2d0ea058"
+    },
+    "基金回测/src/bondpool/metrics.py": {
+      "role": "index",
+      "sha256": "c4265a5786c7e8d1d968d9b621422f189a6184db5537393e81f3ad862e15fa1f",
+      "size": 5922,
+      "normalized_sha256": "c4265a5786c7e8d1d968d9b621422f189a6184db5537393e81f3ad862e15fa1f"
+    },
+    "基金回测/src/bondpool/portfolio.py": {
+      "role": "index",
+      "sha256": "107f1979402ebe2be20daece17ff49f6064f720092e258de4503560d5fd65b2f",
+      "size": 7120,
+      "normalized_sha256": "107f1979402ebe2be20daece17ff49f6064f720092e258de4503560d5fd65b2f"
+    },
+    "基金回测/src/bondpool/report.py": {
+      "role": "index",
+      "sha256": "d750395e1e24601fb4fe499c22a0fd846a7f178f4711319bbf3cd7227b4bf647",
+      "size": 10821,
+      "normalized_sha256": "5764ff83f40c7a1a88d73ca910d133c8627dc07d271410b413aa9010f712384a"
+    },
+    "基金回测/src/bondpool/scoring.py": {
+      "role": "index",
+      "sha256": "4688719f07818a78cfa1d9db6d670a50473590cb2aaa553de44867cdbe84c1a5",
+      "size": 3610,
+      "normalized_sha256": "4688719f07818a78cfa1d9db6d670a50473590cb2aaa553de44867cdbe84c1a5"
+    },
+    "基金回测/src/bondpool/selection.py": {
+      "role": "index",
+      "sha256": "615ed6f22c3255a6ab9a1cd823e69b5fd518dc161ac454c1bc617ec90fff21a7",
+      "size": 8989,
+      "normalized_sha256": "420a096437bcc48ba30bda2a0b7d27dfb31e6125cd3dbca6d41daf694b1581d6"
+    },
+    "基金回测/src/bondpool/sensitivity.py": {
+      "role": "index",
+      "sha256": "be6fd4ad1ae471e4f33ee73251121486c10872b553969ae2c9c7f60548d37bfe",
+      "size": 9716,
+      "normalized_sha256": "edcb2e9829b4cae51b0d0a7d484cb42e3ead3a073e1802436b691950886abed8"
+    },
+    "基金回测/src/bondpool/universe.py": {
+      "role": "index",
+      "sha256": "3b7528d24796eafe4aaf2a7e69641378c95cced6ae92d4f9372e940f2f07df48",
+      "size": 1840,
+      "normalized_sha256": "d06c1b8d989b420da950c79f03a507e553b21622215d4e4ccf048740cf53ef61"
+    },
+    "基金回测/~$池与季度重筛-V17.docx": {
+      "role": "index",
+      "sha256": "3b8b5512d3d3267d9d238815d122c24256808cda575a09d9afe7cfde225fff4e",
+      "size": 162
+    },
+    "基金回测/备选池与季度重筛-V17.docx": {
+      "role": "index",
+      "sha256": "2439110f4c13b4232efcc0de415186d013448c067053eac0326496c0dffe096f",
+      "size": 74931
+    }
+  },
+  "managed_scope": {
+    "version": "managed-scope-baseline/v1",
+    "policy_identity": "e0f548d87fe5462c412a1c54409871a60ddf2ae5c30609258ff8739fdfcc8e76",
+    "observe_change_policy": "review_required",
+    "budget_policy_identity": "15e9b37a6c57e9bf03c9df3d0d049eb5b9a7f5540f9d34960408114e2538a32d",
+    "budget_policy": {
+      "version": "cognition-budget-policy/v1",
+      "mode": "enforce",
+      "whole_index": {
+        "target_tokens": 200000,
+        "warning_tokens": 300000,
+        "max_tokens": 400000
+      },
+      "r": [
+        {
+          "min_c": 1,
+          "max_c": 4,
+          "target_tokens": 25,
+          "max_tokens": 50
+        },
+        {
+          "min_c": 5,
+          "max_c": 7,
+          "target_tokens": 45,
+          "max_tokens": 90
+        },
+        {
+          "min_c": 8,
+          "max_c": 8,
+          "target_tokens": 70,
+          "max_tokens": 140
+        },
+        {
+          "min_c": 9,
+          "max_c": 9,
+          "target_tokens": 90,
+          "max_tokens": 180
+        }
+      ],
+      "s": [
+        {
+          "min_c": 1,
+          "max_c": 4,
+          "target_tokens": 20,
+          "max_tokens": 40
+        },
+        {
+          "min_c": 5,
+          "max_c": 7,
+          "target_tokens": 40,
+          "max_tokens": 80
+        },
+        {
+          "min_c": 8,
+          "max_c": 8,
+          "target_tokens": 70,
+          "max_tokens": 140
+        },
+        {
+          "min_c": 9,
+          "max_c": 9,
+          "target_tokens": 100,
+          "max_tokens": 200
+        }
+      ]
+    },
+    "apply_authorization_mode": "auto"
+  }
+}

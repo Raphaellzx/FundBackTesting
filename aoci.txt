@@ -1,0 +1,7 @@
+#AOCI-ROOT-MANIFEST: 1
+#Format-Version: cognition-volumes/v1
+#Locale: zh-CN
+#Project: 面向基金与债券组合回测的 Python 框架，统一读取 Excel/CSV 净值，按策略目标权重模拟调仓与交易成本，输出净值、持仓、交易、成本及绩效指标；另含 bondpool 资管债券池筛选、打分、组合与 V17 结果复现研究脚本。
+#Global-Invariants: 净值不得回填未来数据，缺失交易日按最近已知净值估值且不插值；策略只返回目标权重，权重有限非负且合计不超过1，余额为现金；时间、调仓与交易成本由引擎集中处理，策略不直接改组合状态；层间只传冻结契约，禁止临时字典或裸 DataFrame 跨层；参数集中配置，结果可复现并保留输入指纹；回测不含申赎确认日差。
+#Volume: id=meta kind=meta path=aoci.meta.txt format=meta-v1 depends=- state=enabled
+#Volume: id=code kind=code path=aoci.code.txt format=object-fras-v2 depends=meta state=enabled
